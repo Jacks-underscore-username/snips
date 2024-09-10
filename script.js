@@ -16,21 +16,21 @@ const snipTypes = ['folder', 'module', 'class', 'function', 'snip']
         if (!fs.existsSync(filePath)) {
             console.log(`Error: The file at ${filePath} does not exist.`)
         }
-
+    
         const osType = os.platform()
-
+    
         if (osType === 'win32') {
             const windowsPath = process.env.USERPROFILE
             const batFilePath = path.join(windowsPath, `${commandName}.bat`)
             const batFileContent = `@echo off\nnode "${path.resolve(filePath)}" %*\n`
-
+    
             if (fs.existsSync(batFilePath) && fs.readFileSync(batFilePath, 'utf8') === batFileContent)
                 return false
-
+    
             fs.writeFileSync(batFilePath, batFileContent)
-
+    
             const setEnvCmd = `[System.Environment]::SetEnvironmentVariable('Path', $env:Path + ';${windowsPath}', [System.EnvironmentVariableTarget]::User)`
-
+    
             execSync(`powershell -Command "${setEnvCmd}"`)
             execSync('powershell -Command "$env:Path = [System.Environment]::GetEnvironmentVariable(\'Path\', [System.EnvironmentVariableTarget]::User)"')
             return true
@@ -38,15 +38,15 @@ const snipTypes = ['folder', 'module', 'class', 'function', 'snip']
         else if (['linux', 'android', 'darwin'].includes(osType)) {
             const shellConfigFile = path.join(os.homedir(), '.bashrc')
             const aliasCommand = `alias ${commandName}='node ${path.resolve(filePath)}'`
-
+    
             const bashrcContent = fs.readFileSync(shellConfigFile, 'utf8')
-
-            if (bashrcContent.includes(aliasCommand))
+    
+            if (bashrcContent.split('\n').includes(aliasCommand))
                 return false
-
+    
             fs.appendFileSync(shellConfigFile, `\n# Added by script\n${aliasCommand}\n`)
-
-            execSync('source ~/.bashrc')
+    
+            console.log(`Success! Added ${commandName} alias. Run 'source ~/.bashrc' or restart your terminal to apply the changes.`)
             return true
         } else
             console.log(`Unsupported OS: ${osType}`)
@@ -839,8 +839,8 @@ const snipTypes = ['folder', 'module', 'class', 'function', 'snip']
         }
         else
             await new Promise(async resolve => {
-                console.log(`Copying snip to snip_${type}_${id}_${version}.${language}`)
-                const toPath = path.join(process.cwd(), `snip_${type}_${id}_${version}.${language}`)
+        const toPath = path.join(process.cwd(), `snip_${type}_${id}_${version}.${language}`)
+                console.log(`Copying snip to ${toPath}`)
                 fs.copyFileSync(path.join(__dirname, 'data', type, language, id, 'versions', version, `content.${language}`), toPath)
                 const dependencies = index[type][language][id].versions[version].dependencies ?? {}
                 if (dependencies.npm)
