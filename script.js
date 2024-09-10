@@ -1,15 +1,60 @@
-#!/usr/bin/env node
-
 const fs = require('fs')
 const path = require('path')
 const chokidar = require('chokidar')
 const { execSync } = require('child_process')
 const { builtinModules } = require('module')
+const os = require('os')
 
 const snipTypes = ['folder', 'module', 'class', 'function', 'snip']
 
     ;
 (async () => {
+
+    //Make sure the shortcut exists
+    if (((filePath, commandName) => {
+
+        if (!fs.existsSync(filePath)) {
+            console.log(`Error: The file at ${filePath} does not exist.`)
+        }
+
+        const osType = os.platform()
+
+        if (osType === 'win32') {
+            const windowsPath = process.env.USERPROFILE
+            const batFilePath = path.join(windowsPath, `${commandName}.bat`)
+            const batFileContent = `@echo off\nnode "${path.resolve(filePath)}" %*\n`
+
+            if (fs.existsSync(batFilePath) && fs.readFileSync(batFilePath, 'utf8') === batFileContent)
+                return false
+
+            fs.writeFileSync(batFilePath, batFileContent)
+
+            const setEnvCmd = `[System.Environment]::SetEnvironmentVariable('Path', $env:Path + ';${windowsPath}', [System.EnvironmentVariableTarget]::User)`
+
+            execSync(`powershell -Command "${setEnvCmd}"`)
+            execSync('powershell -Command "$env:Path = [System.Environment]::GetEnvironmentVariable(\'Path\', [System.EnvironmentVariableTarget]::User)"')
+            return true
+        }
+        else if (['linux', 'android', 'darwin'].includes(osType)) {
+            const shellConfigFile = path.join(os.homedir(), '.bashrc')
+            const aliasCommand = `alias ${commandName}='node ${path.resolve(filePath)}'`
+
+            const bashrcContent = fs.readFileSync(shellConfigFile, 'utf8')
+
+            if (bashrcContent.includes(aliasCommand))
+                return false
+
+            fs.appendFileSync(shellConfigFile, `\n# Added by script\n${aliasCommand}\n`)
+
+            execSync('source ~/.bashrc')
+            return true
+        } else
+            console.log(`Unsupported OS: ${osType}`)
+    })('script.js', 'snips')) {
+        console.log('Shortcut added, you can now use `snips` anywhere.')
+        process.exit(0)
+    }
+
     //Make sure folder structure is correct.
     {
         if (!fs.existsSync(path.join(__dirname, 'data')))
